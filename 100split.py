@@ -13,22 +13,27 @@ import Pk_library as PKL
 import sys,os
 import matplotlib.pyplot as plt
 
-count=1
-while count < 101:
-    print 'REALIZATION NUMBER', count
+root_sims = '/mnt/ceph/users/fvillaescusa/Neutrino_simulations/Sims_Dec16_2/0.0eV/'
+root_output = '/mnt/xfs1/home/tcourt/test/'
 ############################## INPUT ##################################
-    # for dark matter
-    snapshot_fname = '/mnt/ceph/users/fvillaescusa/Neutrino_simulations/Sims_Dec16_2/0.0eV/%i/snapdir_004/snap_004'%count
-
-    # for halos
-    snapdir = '/mnt/ceph/users/fvillaescusa/Neutrino_simulations/Sims_Dec16_2/0.0eV/%i/'%count
-    snapnum = 4
-    
-    dims1 = 128
-    dims = 512
-    bins = 40
-
+dims1 = 1024
+dims = 512
+bins = 40
 #######################################################################
+
+# name of output folder
+folder = root_output+'results_%i/'%dims1
+
+# create output folder if it doesnt exist
+if not(os.path.exists(folder)):
+    os.system('mkdir '+folder)
+
+count=49
+while count < 50:
+    print 'REALIZATION NUMBER', count
+    snapshot_fname = root_sims+'%i/snapdir_004/snap_004'%count
+    snapdir = root_sims+'%i/'%count
+    snapnum = 4
 
     # read snapshot head and obtain BoxSize, Omega_m and Omega_L    
     print '\nREADING SNAPSHOTS PROPERTIES'
@@ -121,7 +126,9 @@ while count < 101:
     
     # compute power spectrum of halos above
     Pk_h = PKL.Pk(delta_h, BoxSize, axis=0, MAS='CIC', threads=1)
-    np.savetxt('Pk_h_above_local%i.txt'%count,np.transpose([Pk_h.k3D,Pk_h.Pk[:,0]]))
+    Pk_h.Pk[:,0] = Pk_h.Pk[:,0] - BoxSize**3*1.0/(len(pos_h[indexAbove]))
+    fout = folder+'Pk_h_above_local%i.txt'%count
+    np.savetxt(fout, np.transpose([Pk_h.k3D,Pk_h.Pk[:,0]]))
 
 
     # compute density field of halos below
@@ -133,7 +140,9 @@ while count < 101:
     
     # compute power spectrum of halos below
     Pk_h = PKL.Pk(delta_h, BoxSize, axis=0, MAS='CIC', threads=1)
-    np.savetxt('Pk_h_below_local%i.txt'%count,np.transpose([Pk_h.k3D,Pk_h.Pk[:,0]]))
+    Pk_h.Pk[:,0] = Pk_h.Pk[:,0] - BoxSize**3*1.0/(len(pos_h[indexBelow]))
+    fout = folder+'Pk_h_below_local%i.txt'%count
+    np.savetxt(fout, np.transpose([Pk_h.k3D,Pk_h.Pk[:,0]]))
     
 
     # compute density field of all halos 
@@ -146,6 +155,8 @@ while count < 101:
     
     # compute power spectrum of all halos 
     Pk_h = PKL.Pk(delta_h, BoxSize, axis=0, MAS='CIC', threads=1)
-    np.savetxt('Pk_h_total_local%i.txt'%count,np.transpose([Pk_h.k3D,Pk_h.Pk[:,0]]))
+    Pk_h.Pk[:,0] = Pk_h.Pk[:,0] - BoxSize**3*1.0/(len(pos_h[index_total]))
+    fout = folder+'Pk_h_total_local%i.txt'%count
+    np.savetxt(fout, np.transpose([Pk_h.k3D,Pk_h.Pk[:,0]]))
     
     count+=1
