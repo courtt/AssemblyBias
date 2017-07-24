@@ -13,15 +13,15 @@ rc('text',usetex=True)
 ############ INPUT ######################################
 
 root = '/mnt/xfs1/home/tcourt/test/'
-folder1 = 'results_cross_c_0.0eV_64/'
-folder2 = 'results_cross_c_0.0eV_128/'
-folder3 = 'results_cross_c_0.0eV_256/'
-folder4 = 'results_cross_c_0.0eV_512/'
+folder1 = 'random_0.0eV_64/'
+folder2 = 'random_0.0eV_128/'
+folder3 = 'random_0.0eV_256/'
+folder4 = 'random_0.0eV_512/'
 
 
 ####### Locate files #################
 
-plt.title('Assembly Bias of Neutrino Mass 0.0eV CDM Split',fontsize=20)
+plt.title('Neutrino Mass 0.0eV Total Random Split',fontsize=20)
 plt.ylabel(r'$b_h(k)$',fontsize=16)
 plt.xlabel(r'$k [h^{-1}Mpc]$',fontsize=16)
 plt.xlim([6e-3,0.5])#,0.5,3.5])
@@ -53,7 +53,7 @@ plt.xscale('log')
 plt.legend(loc=1)
 
 #plt.show()
-plt.savefig('c_0.0eV_assemblybiastotal.png')
+plt.savefig('r_0.0eV_assemblybiastotal.png')
 
 """
 #64 

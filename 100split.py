@@ -19,7 +19,7 @@ nprocs=comm.Get_size()
 myrank=comm.Get_rank()
 
 
-def clustering(root_sims,folder,count,ptype,dims1,dims,bins):
+def clustering(root_sims,folder,count,dims1,dims,bins):#ptype
 
     print 'REALIZATION NUMBER', count
     snapshot_fname = root_sims+'%i/snapdir_004/snap_004'%count
@@ -29,17 +29,30 @@ def clustering(root_sims,folder,count,ptype,dims1,dims,bins):
     # read snapshot head and obtain BoxSize, Omega_m and Omega_L    
     print '\nREADING SNAPSHOTS PROPERTIES'
     head     = readsnap.snapshot_header(snapshot_fname)
+    Masses   = head.massarr*1e10 #Msun/h 
     BoxSize  = head.boxsize/1e3  #Mpc/h                  
     redshift = head.redshift
     z        = '%.3f'%redshift
     
-    # read positions 
-    pos = readsnap.read_block(snapshot_fname,"POS ",parttype=ptype)/1e3 #Mpc/h
+    # read positions of cdm
+    pos = readsnap.read_block(snapshot_fname,"POS ",parttype=1)/1e3 #Mpc/h
+    rhoFunc_c = np.zeros((dims1,dims1,dims1), dtype=np.float32)
+    MASL.CIC(pos, rhoFunc_c, BoxSize)
 
-    # compute density field
-    rhoFunc = np.zeros((dims1,dims1,dims1), dtype=np.float32)
-    MASL.CIC(pos, rhoFunc, BoxSize)
-    
+    # compute value of delta_c
+    delta_c = np.zeros((dims,dims,dims), dtype=np.float32)
+    MASL.CIC(pos, delta_c, BoxSize)
+    #delta_c = delta_c/np.sqrt(delta_c, dtype=np.float64) - 1.0
+    delta_c /= np.mean(delta_c,dtype=np.float64);  delta_c -= 1.0
+    # read positions of nu
+    pos = readsnap.read_block(snapshot_fname,"POS ",parttype=2)/1e3 #Mpc/h
+    rhoFunc_n = np.zeros((dims1,dims1,dims1), dtype=np.float32)
+    MASL.CIC(pos, rhoFunc_n, BoxSize)
+
+    # compute matter field
+    rhoFunc_m = np.zeros((dims1,dims1,dims1), dtype=np.float32)
+    rhoFunc_m = (Masses[1]*rhoFunc_c + Masses[2]*rhoFunc_n)/(Masses[1]+Masses[2])
+
     # read positions and velocities of halos
     FoF   = readfof.FoF_catalog(snapdir,snapnum,long_ids=False,
                                 swap=False,SFR=False)
@@ -48,7 +61,8 @@ def clustering(root_sims,folder,count,ptype,dims1,dims,bins):
     
     # compute the density in the positions of the halos
     rho_h = np.zeros(len(pos_h), dtype=np.float32)
-    MASL.CIC_interp(rhoFunc, BoxSize, pos_h, rho_h)
+    #MASL.CIC_interp(rhoFunc_m, BoxSize, pos_h, rho_h)
+    MASL.CIC_interp(rhoFunc_c, BoxSize, pos_h, rho_h)
 
 
 
@@ -99,14 +113,22 @@ def clustering(root_sims,folder,count,ptype,dims1,dims,bins):
     MASL.CIC(pos_h[indexBelow],delta_hbb,BoxSize)
     delta_hbb /= np.mean(delta_hbb,dtype=np.float64);  delta_hbb -= 1.0
     print '%.3e < delta_hbb < %.3e'%(np.min(delta_hbb),np.max(delta_hbb))
+
+    # compute density field of all halos 
+    index_total = np.hstack([indexAbove,indexBelow])
+    delta_h = np.zeros((dims,dims,dims), dtype=np.float32)
+    MASL.CIC(pos_h, delta_h, BoxSize)
+    delta_h /= np.mean(delta_h,dtype=np.float64);  delta_h -= 1.0
+    print '%.3e < delta_h < %.3e'%(np.min(delta_h),np.max(delta_h))
     
     # compute auto- and cross-power spectra
-    Pk = PKL.XPk([delta_haa,delta_hbb], BoxSize, axis=0, 
-                 MAS=['CIC','CIC'], threads=1)
+    Pk = PKL.XPk([delta_haa, delta_hbb, delta_h, delta_c], BoxSize, axis=0, 
+                 MAS=['CIC','CIC','CIC','CIC'], threads=1)
 
     # subtract shot-noise from halos
     Pk.Pk[:,0,0] = Pk.Pk[:,0,0] - BoxSize**3*1.0/len(pos_h[indexAbove])
     Pk.Pk[:,0,1] = Pk.Pk[:,0,1] - BoxSize**3*1.0/len(pos_h[indexBelow])
+    Pk.Pk[:,0,2] = Pk.Pk[:,0,2] - BoxSize**3*1.0/len(pos_h[index_total])
 
     # find coefficients for total Pk
     c1 = len(indexAbove)*1.0/len(pos_h)
@@ -117,24 +139,28 @@ def clustering(root_sims,folder,count,ptype,dims1,dims,bins):
     fout2 = folder+'Pk_hbb_%i.txt'%count
     fout3 = folder+'Pk_hab_%i.txt'%count
     fout4 = folder+'Pk_haa+hbb+2hab_%i.txt'%count
+    fout5 = folder+'Pk_haa-c_%i.txt'%count
+    fout6 = folder+'Pk_hbb-c_%i.txt'%count
+    fout7 = folder+'Pk_htt-c_%i.txt'%count
+    fout8 = folder+'Pk_cc_%i.txt'%count
+    fout9 = folder+'Pk_htt_%i.txt'%count
     np.savetxt(fout1, np.transpose([Pk.k3D, Pk.Pk[:,0,0]]))
     np.savetxt(fout2, np.transpose([Pk.k3D, Pk.Pk[:,0,1]]))
     np.savetxt(fout3, np.transpose([Pk.k3D, Pk.XPk[:,0,0]]))
     np.savetxt(fout4, 
                np.transpose([Pk.k3D, c1**2*Pk.Pk[:,0,0]+c2**2*Pk.Pk[:,0,1]+2*c1*c2*Pk.XPk[:,0,0]]))
+    np.savetxt(fout5, np.transpose([Pk.k3D, Pk.XPk[:,0,2]]))
+    np.savetxt(fout6, np.transpose([Pk.k3D, Pk.XPk[:,0,4]]))
+    np.savetxt(fout7, np.transpose([Pk.k3D, Pk.XPk[:,0,5]]))
+    np.savetxt(fout8, np.transpose([Pk.k3D, Pk.Pk[:,0,3]]))
+    np.savetxt(fout9, np.transpose([Pk.k3D, Pk.Pk[:,0,2]]))
 
-    # compute density field of all halos 
-    index_total = np.hstack([indexAbove,indexBelow])
-    delta_h = np.zeros((dims,dims,dims), dtype=np.float32)
-    MASL.CIC(pos_h, delta_h, BoxSize)
-    delta_h /= np.mean(delta_h,dtype=np.float64);  delta_h -= 1.0
-    print '%.3e < delta_h < %.3e'%(np.min(delta_h),np.max(delta_h))
     
     # compute power spectrum of all halos 
-    Pk_h = PKL.Pk(delta_h, BoxSize, axis=0, MAS='CIC', threads=1)
-    Pk_h.Pk[:,0] = Pk_h.Pk[:,0] - BoxSize**3*1.0/len(pos_h)
-    fout = folder+'Pk_htt_%i.txt'%count
-    np.savetxt(fout, np.transpose([Pk_h.k3D,Pk_h.Pk[:,0]]))
+    #Pk_h = PKL.Pk(delta_h, BoxSize, axis=0, MAS='CIC', threads=1)
+    #Pk_h.Pk[:,0] = Pk_h.Pk[:,0] - BoxSize**3*1.0/len(pos_h)
+    #fout = folder+'Pk_htt_%i.txt'%count
+    #np.savetxt(fout, np.transpose([Pk_h.k3D,Pk_h.Pk[:,0]]))
 
 
 root_total = '/mnt/ceph/users/fvillaescusa/Neutrino_simulations/Sims_Dec16_2/'
@@ -152,33 +178,34 @@ files = 100
 for root_folder in ['0.0eV/','0.15eV/','0.6eV/']:
     root_sims = root_total + root_folder
     print root_folder
-    for dims1 in [64,128,256,512,1024]:
+    for dims1 in [32,64,128,256]:
         print dims1
-        for ptype in [1,2]:
-            print ptype
-            if root_folder=='0.0eV/' and ptype==2:
-                continue
+        folder = root_output+'CDM_bias_%s_%i/'%(root_folder[:-1],dims1)
+        #for ptype in [1,2]:
+         #   print ptype
+          #  if root_folder=='0.0eV/' and ptype==2:
+           #     continue
 
 
             # name of output folder
-            if ptype==1: folder = root_output+'results_cross_c_%s_%i/'%(root_folder[:-1],dims1)
-            if ptype==2: folder = root_output+'results_cross_nu_%s_%i/'%(root_folder[:-1],dims1)
+            #if ptype==1: folder = root_output+'results_cross_c_%s_%i/'%(root_folder[:-1],dims1)
+            #if ptype==2: folder = root_output+'results_cross_nu_%s_%i/'%(root_folder[:-1],dims1)
             
 
-            # create folder if it does not exists
-            if myrank==0:
-                if not(os.path.exists(folder+'Pk_haa_100.txt')):  
-                    os.system('mkdir '+folder)
-                else:
-                    print 'FOLDER ALREADY COMPLETED'
-                    continue
+        # create folder if it does not exists
+        if myrank==0:
+            if not(os.path.exists(folder+'Pk_haa_100.txt')):  
+                os.system('mkdir '+folder)
+            else:
+                print 'FOLDER ALREADY COMPLETED'
+                continue
 
-            # find the numbers each cpu will work
-            numbers = np.where(np.arange(files)%nprocs==myrank)[0]+1
+        # find the numbers each cpu will work
+        numbers = np.where(np.arange(files)%nprocs==myrank)[0]+1
 
-            # do a loop over all realizations of each cpu
-            for i in numbers:
+        # do a loop over all realizations of each cpu
+        for i in numbers:
 
-                print 'cpu %d working with realization %2d'%(myrank,i)
-                clustering(root_sims,folder,i,ptype,dims1,dims,bins)
+            print 'cpu %d working with realization %2d'%(myrank,i)
+            clustering(root_sims,folder,i,dims1,dims,bins)#ptype
 

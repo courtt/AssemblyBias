@@ -12,12 +12,12 @@ import sys, os
 
 root = '/mnt/xfs1/home/tcourt/test/'
 
-for root_folder in ['0.0eV','0.15eV/','0.6eV/']:
+for root_folder in ['0.0eV/','0.6eV/']:
     print root_folder
 
     for dims1 in [64,128,256,512,1024]:
         print dims1
-        folder = 'results_cross_c_%s_%i/'%(root_folder[:-1],dims1)
+        folder = 'random_%s_%i/'%(root_folder[:-1],dims1)
     
         k, Pk = np.loadtxt(root+folder+'Pk_htt_1.txt',unpack=True)
 

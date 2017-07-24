@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 root_sims = '/mnt/ceph/users/fvillaescusa/Neutrino_simulations/Sims_Dec16_2/0.6eV/'
 root_output = '/mnt/xfs1/home/tcourt/test/'
 ############################## INPUT ##################################
-dims1 = 64
+dims1 = 1024
 dims = 512
 bins = 40
 realization=1

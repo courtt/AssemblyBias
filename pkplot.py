@@ -15,12 +15,12 @@ rc('text',usetex=True)
 
 root = '/mnt/xfs1/home/tcourt/test/'
 
-for root_folder in ['0.15eV/','0.6eV/']:
+for root_folder in ['0.0eV/','0.6eV/']:
     print root_folder
 
     for dims1 in [64,128,256,512,1024]:
         print dims1
-        folder = 'results_cross_nu_%s_%i/'%(root_folder[:-1],dims1)
+        folder = 'random_%s_%i/'%(root_folder[:-1],dims1)
 
         ####### Locate files #################
         pkhaa   = root+folder+"results_haa.txt"
@@ -50,7 +50,8 @@ for root_folder in ['0.15eV/','0.6eV/']:
         k, b_h_tt, b_tt_err    = np.loadtxt(bhtt,unpack=True)
 
         ######### Plotting the data and error ###############
-        plt.title('Power Spectrum of Neutrino Mass %s at Resolution %i'%(root_folder[:-1],dims1),fontsize=20)
+        plt.clf()
+        plt.title('Random Split, Neutrino Mass %s, Resolution %i'%(root_folder[:-1],dims1),fontsize=20)
         plt.ylabel(r'$P(k) [(h^{-1}Mpc)^3]$',fontsize=16)
         plt.xlabel(r'$k [h^{-1}Mpc]$',fontsize=16)
         plt.xlim([6e-3,3.5])#,100,1e7])
@@ -63,12 +64,12 @@ for root_folder in ['0.15eV/','0.6eV/']:
         plt.xscale('log')
         plt.yscale('log')
         plt.legend(loc=0)
-        
+       
         #plt.show()
-        plt.savefig('Nu_%s_%i.png'%(root_folder[:-1],dims1))
+        plt.savefig('pk_random_%s_%i.png'%(root_folder[:-1],dims1))
         plt.clf()
         
-        plt.title('Assembly Bias of Neutrino Mass %s at Resolution %i'%(root_folder[:-1],dims1),fontsize=20)
+        plt.title('Random Split, Neutrino %s, Resolution %i'%(root_folder[:-1],dims1),fontsize=20)
         plt.ylabel(r'$b_h(k)$',fontsize=16)
         plt.xlabel(r'$k [h^{-1}Mpc]$',fontsize=16)
         plt.xlim([6e-3,0.5])#,0.5,3.5])
@@ -82,7 +83,7 @@ for root_folder in ['0.15eV/','0.6eV/']:
         plt.legend(loc=0)
 
         #plt.show()
-        plt.savefig('Nu_%s_%i.png'%(root_folder[:-1],dims1))
+        plt.savefig('b_random_%s_%i.png'%(root_folder[:-1],dims1))
 
 
 
